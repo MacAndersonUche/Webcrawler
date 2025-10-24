@@ -54,7 +54,11 @@ async function main() {
   console.log('='.repeat(80));
 
   try {
-    const results = await crawl(startURL);
+    // Use concurrent crawling with production settings
+    const results = await crawl(startURL, {
+      maxConcurrency: 5,    // Process up to 5 URLs simultaneously
+      rateLimitMs: 100     // 100ms delay between batches for server respect
+    });
     printResults(results);
   } catch (error) {
     console.error('\nCrawl failed:', error instanceof Error ? error.message : 'Unknown error');

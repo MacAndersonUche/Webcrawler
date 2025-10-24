@@ -1,5 +1,5 @@
-import * as express from 'express';
-import * as cors from 'cors';
+import express from 'express';
+import cors from 'cors';
 // Removed unused imports
 import { crawl } from './crawler.js';
 
@@ -27,8 +27,14 @@ app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
   }
 
   try {
-    console.log(`Starting crawl of: ${url}`);
-    const results = await crawl(url);
+    console.log(`Starting concurrent crawl of: ${url}`);
+    
+    // Configure concurrency for production use
+    const results = await crawl(url, {
+      maxConcurrency: 5,    // Process up to 5 URLs simultaneously
+      rateLimitMs: 100     // 100ms delay between batches
+    });
+    
     console.log(`Crawl complete: ${results.length} pages found`);
     
     res.json({ 

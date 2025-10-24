@@ -96,56 +96,95 @@ async function fetchPage(url: string): Promise<string | null> {
 }
 
 /**
- * Crawl a website starting from a base URL
+ * Crawl a website starting from a base URL with configurable concurrency
  * Returns a list of crawled pages with their links
  */
-export async function crawl(startURL: string): Promise<CrawlResult[]> {
+export async function crawl(
+  startURL: string, 
+  options: { maxConcurrency?: number; rateLimitMs?: number } = {}
+): Promise<CrawlResult[]> {
+  const { maxConcurrency = 5, rateLimitMs = 100 } = options;
+  
   const results: CrawlResult[] = [];
   const visited = new Set<string>();
   const queue: string[] = [startURL];
+  const inProgress = new Set<string>();
+  let isProcessing = false;
 
-  while (queue.length > 0) {
-    const currentURL = queue.shift()!;
-    const normalizedURL = normalizeURL(currentURL);
+  const processQueue = async () => {
+    if (isProcessing) return;
+    isProcessing = true;
 
-    // Skip if already visited
-    if (visited.has(normalizedURL)) {
-      continue;
+    while (queue.length > 0 || inProgress.size > 0) {
+      // Start new requests up to concurrency limit
+      const availableSlots = maxConcurrency - inProgress.size;
+      const urlsToProcess = queue.splice(0, availableSlots);
+
+      if (urlsToProcess.length > 0) {
+        // Process URLs concurrently
+        const promises = urlsToProcess.map(url => processURL(url));
+        await Promise.allSettled(promises);
+      }
+
+      // Rate limiting
+      if (queue.length > 0 || inProgress.size > 0) {
+        await new Promise(resolve => setTimeout(resolve, rateLimitMs));
+      }
+    }
+
+    isProcessing = false;
+  };
+
+  const processURL = async (url: string) => {
+    const normalizedURL = normalizeURL(url);
+    
+    // Skip if already visited or in progress
+    if (visited.has(normalizedURL) || inProgress.has(normalizedURL)) {
+      return;
     }
 
     // Skip if not same subdomain
-    if (!isSameSubdomain(startURL, currentURL)) {
-      continue;
+    if (!isSameSubdomain(startURL, url)) {
+      return;
     }
 
-    visited.add(normalizedURL);
+    inProgress.add(normalizedURL);
     console.log(`\n✓ Visiting: ${normalizedURL}`);
 
-    // Fetch the page
-    const html = await fetchPage(currentURL);
-    if (!html) {
-      results.push({ url: normalizedURL, links: [] });
-      continue;
-    }
-
-    // Extract links
-    const links = getLinksFromHTML(html, currentURL);
-    const normalizedLinks = [...new Set(links.map(link => normalizeURL(link)))];
-    
-    console.log(`  Found ${normalizedLinks.length} links`);
-    
-    results.push({
-      url: normalizedURL,
-      links: normalizedLinks
-    });
-
-    // Add internal links to queue
-    for (const link of links) {
-      if (isSameSubdomain(startURL, link)) {
-        queue.push(link);
+    try {
+      // Fetch the page
+      const html = await fetchPage(url);
+      if (!html) {
+        results.push({ url: normalizedURL, links: [] });
+        return;
       }
-    }
-  }
 
+      // Extract links
+      const links = getLinksFromHTML(html, url);
+      const normalizedLinks = [...new Set(links.map(link => normalizeURL(link)))];
+      
+      console.log(`  Found ${normalizedLinks.length} links`);
+      
+      results.push({
+        url: normalizedURL,
+        links: normalizedLinks
+      });
+
+      // Add internal links to queue
+      for (const link of links) {
+        if (isSameSubdomain(startURL, link)) {
+          queue.push(link);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing ${url}:`, error);
+      results.push({ url: normalizedURL, links: [] });
+    } finally {
+      visited.add(normalizedURL);
+      inProgress.delete(normalizedURL);
+    }
+  };
+
+  await processQueue();
   return results;
 }
