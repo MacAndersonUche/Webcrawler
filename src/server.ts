@@ -1,18 +1,15 @@
 import * as express from 'express';
 import * as cors from 'cors';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+// Removed unused imports
 import { crawl } from './crawler.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Remove unused __dirname since we're not serving static files anymore
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
 
 // API endpoint to start crawling
 app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
