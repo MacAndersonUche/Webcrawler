@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { crawl } from '@webcrawler/core';
+import { crawl } from './crawler';
 
 const app = express();
 

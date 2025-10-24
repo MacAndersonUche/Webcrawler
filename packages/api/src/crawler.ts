@@ -156,9 +156,12 @@ export async function crawl(
         links: normalizedLinks
       });
 
-      // Add internal links to queue
+      // Add internal links to queue (only if not already visited or in progress)
       for (const link of links) {
-        if (isSameSubdomain(startURL, link)) {
+        const normalizedLink = normalizeURL(link);
+        if (isSameSubdomain(startURL, link) && 
+            !visited.has(normalizedLink) && 
+            !inProgress.has(normalizedLink)) {
           queue.push(link);
         }
       }

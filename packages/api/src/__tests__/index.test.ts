@@ -1,14 +1,12 @@
 import { test, expect, describe, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import express from 'express';
-import cors from 'cors';
 
 // Mock the core crawler
-vi.mock('@webcrawler/core', () => ({
+vi.mock('../crawler', () => ({
   crawl: vi.fn()
 }));
 
-import { crawl } from '@webcrawler/core';
+import { crawl } from '../crawler';
 import app from '../index';
 
 const mockCrawl = vi.mocked(crawl);

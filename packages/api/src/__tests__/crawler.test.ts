@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeEach } from 'vitest';
-import { normalizeURL, isSameSubdomain, getLinksFromHTML, crawl } from '../index';
+import { normalizeURL, isSameSubdomain, getLinksFromHTML, crawl } from '../crawler';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -111,33 +111,54 @@ describe('crawl function', () => {
 
   test('crawls a simple site with one page', async () => {
     const mockFetch = vi.mocked(fetch);
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: new Map([['content-type', 'text/html']]),
-      text: () => Promise.resolve('<html><body><a href="/about">About</a></body></html>')
-    } as any);
+    mockFetch.mockImplementation((url) => {
+      if (url === 'https://example.com') {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve('<html><body><a href="/about">About</a></body></html>')
+        } as any);
+      } else {
+        // Mock the /about page to return no links to prevent further crawling
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve('<html><body><p>About page</p></body></html>')
+        } as any);
+      }
+    });
 
     const results = await crawl('https://example.com', { maxConcurrency: 1, rateLimitMs: 0 });
     
-    expect(results).toHaveLength(1);
+    expect(results).toHaveLength(2); // Both pages should be crawled
     expect(results[0].url).toBe('https://example.com');
     expect(results[0].links).toContain('https://example.com/about');
+    expect(results[1].url).toBe('https://example.com/about');
   });
 
   test('respects concurrency limits', async () => {
     const mockFetch = vi.mocked(fetch);
     mockFetch.mockImplementation((url) => {
-      return Promise.resolve({
-        ok: true,
-        headers: new Map([['content-type', 'text/html']]),
-        text: () => Promise.resolve(`<html><body><a href="${url}/page2">Page 2</a></body></html>`)
-      } as any);
+      // Return different content based on URL to avoid infinite loops
+      if (url === 'https://example.com') {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve(`<html><body><a href="https://example.com/page2">Page 2</a></body></html>`)
+        } as any);
+      } else {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve(`<html><body><p>No more links</p></body></html>`)
+        } as any);
+      }
     });
 
     const results = await crawl('https://example.com', { maxConcurrency: 2, rateLimitMs: 0 });
     
-    expect(mockFetch).toHaveBeenCalledTimes(1); // Only initial page
-    expect(results).toHaveLength(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2); // Initial page + page2
+    expect(results).toHaveLength(2);
   });
 
   test('handles network errors gracefully', async () => {
