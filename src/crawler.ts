@@ -1,114 +1,151 @@
 import { JSDOM } from 'jsdom';
 
-export type PageMap = Record<string, number>;
+export interface CrawlResult {
+  url: string;
+  links: string[];
+}
 
 /**
- * Crawl a web page and collect links to other pages on the same website.
- *
- * - Only visits pages on the same domain.
- * - Keeps track of how many times each page is visited.
- * - Recursively follows internal links.
+ * Normalize a URL by removing trailing slashes and fragments
  */
-export async function crawlPage(
-  baseURL: string,
-  currentURL: string,
-  pages: PageMap
-): Promise<PageMap> {
+export function normalizeURL(urlString: string): string {
   try {
-    // Create URL objects for comparison and parsing
-    const base = new URL(baseURL);
-    const current = new URL(currentURL);
+    const url = new URL(urlString);
+    // Remove trailing slash and fragment
+    let path = url.pathname;
+    if (path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+    // Ensure at least empty string if path becomes empty
+    if (path === '') {
+      path = '';
+    }
+    return `${url.protocol}//${url.hostname}${path}${url.search}`;
+  } catch (error) {
+    throw new Error(`Invalid URL: ${urlString}`);
+  }
+}
 
-    // 1️⃣ Skip if the current page is from a different domain
-    if (base.hostname !== current.hostname) {
-      console.log(`Skipping ${currentURL} (different domain)`);
-      return pages;
+/**
+ * Check if a URL belongs to the same subdomain as the base URL
+ * e.g., monzo.com should not crawl community.monzo.com
+ */
+export function isSameSubdomain(baseURL: string, targetURL: string): boolean {
+  try {
+    const base = new URL(baseURL);
+    const target = new URL(targetURL);
+    return base.hostname === target.hostname;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Extract all links from HTML content
+ */
+export function getLinksFromHTML(html: string, baseURL: string): string[] {
+  const links: string[] = [];
+  const dom = new JSDOM(html);
+  const anchorElements = dom.window.document.querySelectorAll('a');
+
+  for (const anchor of anchorElements) {
+    const href = anchor.getAttribute('href');
+    if (!href) continue;
+
+    try {
+      // Handle relative and absolute URLs
+      const absoluteURL = new URL(href, baseURL);
+      
+      // Only include http and https protocols
+      if (absoluteURL.protocol !== 'http:' && absoluteURL.protocol !== 'https:') {
+        continue;
+      }
+      
+      links.push(absoluteURL.href);
+    } catch (error) {
+      // Skip invalid URLs
+      continue;
+    }
+  }
+
+  return links;
+}
+
+/**
+ * Fetch and parse a single page
+ */
+async function fetchPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`  ✗ HTTP ${response.status}: ${url}`);
+      return null;
     }
 
-    // 2️⃣ Normalize the URL (remove trailing slash, etc.)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      return null;
+    }
+
+    return await response.text();
+  } catch (error) {
+    console.error(`  ✗ Error fetching ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
+  }
+}
+
+/**
+ * Crawl a website starting from a base URL
+ * Returns a list of crawled pages with their links
+ */
+export async function crawl(startURL: string): Promise<CrawlResult[]> {
+  const results: CrawlResult[] = [];
+  const visited = new Set<string>();
+  const queue: string[] = [startURL];
+
+  while (queue.length > 0) {
+    const currentURL = queue.shift()!;
     const normalizedURL = normalizeURL(currentURL);
 
-    // 3️⃣ If we've already seen this page before, increase its count
-    if (pages[normalizedURL]) {
-      pages[normalizedURL] += 1;
-      console.log(
-        `Already visited ${currentURL} (${pages[normalizedURL]} times)`
-      );
-      return pages;
+    // Skip if already visited
+    if (visited.has(normalizedURL)) {
+      continue;
     }
 
-    // 4️⃣ Otherwise, mark this page as visited for the first time
-    pages[normalizedURL] = 1;
-    console.log(`🕷️ Crawling: ${currentURL}`);
-
-    // 5️⃣ Try to fetch the page contents
-    const response = await fetch(currentURL);
-
-    // 6️⃣ If the request failed (e.g., 404 or 500), skip this page
-    if (!response.ok) {
-      console.warn(`❌ Failed (${response.status}) to fetch: ${currentURL}`);
-      return pages;
+    // Skip if not same subdomain
+    if (!isSameSubdomain(startURL, currentURL)) {
+      continue;
     }
 
-    // 7️⃣ Check if the page is actually HTML (ignore images, PDFs, etc.)
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('text/html')) {
-      console.log(`Skipping ${currentURL} (not HTML)`);
-      return pages;
+    visited.add(normalizedURL);
+    console.log(`\n✓ Visiting: ${normalizedURL}`);
+
+    // Fetch the page
+    const html = await fetchPage(currentURL);
+    if (!html) {
+      results.push({ url: normalizedURL, links: [] });
+      continue;
     }
 
-    // 8️⃣ Read the HTML content
-    const htmlBody = await response.text();
+    // Extract links
+    const links = getLinksFromHTML(html, currentURL);
+    const normalizedLinks = [...new Set(links.map(link => normalizeURL(link)))];
+    
+    console.log(`  Found ${normalizedLinks.length} links`);
+    
+    results.push({
+      url: normalizedURL,
+      links: normalizedLinks
+    });
 
-    // 9️⃣ Extract all internal links from the page
-    const nextURLs = getURLsFromHTML(htmlBody, baseURL);
-
-    // 🔁 10️⃣ Recursively crawl each of those links
-    for (const nextURL of nextURLs) {
-      pages = await crawlPage(baseURL, nextURL, pages);
-    }
-  } catch (error) {
-    // Catch any network or parsing errors
-    console.error(`⚠️ Error while crawling ${currentURL}:`, error);
-  }
-
-  // Return the final map of visited pages
-  return pages;
-}
-
-export function normalizeURL(urlstring: string) {
-  const urlObj = new URL(urlstring);
-  const hostPath = `${urlObj.hostname}${urlObj.pathname}`;
-
-  if (hostPath.length > 0 && hostPath.slice(-1) === '/') {
-    return hostPath.slice(0, -1);
-  }
-
-  return hostPath;
-}
-
-export function getURLsFromHTML(htmlBody: string, baseURL: string) {
-  const urls: string[] = [];
-  const dom = new JSDOM(htmlBody);
-
-  const linkElements = dom.window.document.querySelectorAll('a');
-
-  for (const element of linkElements) {
-    if (element.href.slice(0, 1) === '/') {
-      try {
-        const urlObj = new URL(`${baseURL}${element.href}`);
-        urls.push(urlObj.href);
-      } catch (error) {
-        console.log(`Error with relative url ${error}`);
-      }
-    } else {
-      try {
-        const urlObj = new URL(element.href);
-        urls.push(urlObj.href);
-      } catch (error) {
-        console.log(`Error with absolute url ${error}`);
+    // Add internal links to queue
+    for (const link of links) {
+      if (isSameSubdomain(startURL, link)) {
+        queue.push(link);
       }
     }
   }
-  return urls;
+
+  return results;
 }
