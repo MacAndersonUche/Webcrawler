@@ -5,9 +5,6 @@ export interface CrawlResult {
   links: string[];
 }
 
-/**
- * Normalize a URL by removing trailing slashes and fragments
- */
 export function normalizeURL(urlString: string): string {
   try {
     const url = new URL(urlString);
@@ -26,10 +23,6 @@ export function normalizeURL(urlString: string): string {
   }
 }
 
-/**
- * Check if a URL belongs to the same subdomain as the base URL
- * e.g., monzo.com should not crawl community.monzo.com
- */
 export function isSameSubdomain(baseURL: string, targetURL: string): boolean {
   try {
     const base = new URL(baseURL);
@@ -40,9 +33,6 @@ export function isSameSubdomain(baseURL: string, targetURL: string): boolean {
   }
 }
 
-/**
- * Extract all links from HTML content
- */
 export function getLinksFromHTML(html: string, baseURL: string): string[] {
   const links: string[] = [];
   const dom = new JSDOM(html);
@@ -95,10 +85,6 @@ async function fetchPage(url: string): Promise<string | null> {
   }
 }
 
-/**
- * Crawl a website starting from a base URL with configurable concurrency
- * Returns a list of crawled pages with their links
- */
 export async function crawl(
   startURL: string, 
   options: { maxConcurrency?: number; rateLimitMs?: number } = {}

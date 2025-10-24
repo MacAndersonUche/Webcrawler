@@ -1,17 +1,11 @@
 import express from 'express';
 import cors from 'cors';
-// Removed unused imports
-import { crawl } from './crawler.js';
-
-// Remove unused __dirname since we're not serving static files anymore
+import { crawl } from '@webcrawler/core';
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-
-// API endpoint to start crawling
 app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
   const { url } = req.body;
   
@@ -29,10 +23,9 @@ app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
   try {
     console.log(`Starting concurrent crawl of: ${url}`);
     
-    // Configure concurrency for production use
     const results = await crawl(url, {
-      maxConcurrency: 5,    // Process up to 5 URLs simultaneously
-      rateLimitMs: 100     // 100ms delay between batches
+      maxConcurrency: 5,
+      rateLimitMs: 100
     });
     
     console.log(`Crawl complete: ${results.length} pages found`);
@@ -50,9 +43,11 @@ app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Web Crawler Server running on http://localhost:${PORT}`);
-  console.log(`📱 Open your browser and navigate to the URL above`);
-});
+export default app;
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Web Crawler Server running on http://localhost:${PORT}`);
+    console.log(`📱 Open your browser and navigate to the URL above`);
+  });
+}

@@ -5,34 +5,24 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "tsx ./src/index.ts",
-    "start:web": "tsx ./src/server.ts",
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest run"
+    "start:cli": "tsx packages/cli/src/index.ts",
+    "start:api": "tsx packages/api/src/index.ts",
+    "start:web": "cd packages/web && npm run dev",
+    "start:all": "concurrently \"npm run start:api\" \"npm run start:web\"",
+    "test": "cd packages/core && npm test",
+    "test:api": "cd packages/api && npm test",
+    "test:web": "cd packages/web && npm test",
+    "test:all": "npm run test && npm run test:api && npm run test:web",
+    "build": "cd packages/core && npm run build && cd ../cli && npm run build && cd ../api && npm run build && cd ../web && npm run build",
+    "dev": "npm run start:all"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.4",
-    "@types/jsdom": "^27.0.0",
     "@types/node": "^24.9.1",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.1.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.12",
-    "vitest": "^4.0.3"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "jsdom": "^27.0.1",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "typescript": "^5.9.3"
   }
 }
