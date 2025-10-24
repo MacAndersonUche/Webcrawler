@@ -41,10 +41,37 @@ function App() {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-      <h1>🕷️ Web Crawler</h1>
+    <div
+      style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '20px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        lineHeight: '1.6',
+      }}
+    >
+      <h1
+        style={{
+          textAlign: 'center',
+          color: '#333',
+          marginBottom: '30px',
+          fontSize: '2.5rem',
+          fontWeight: '300',
+        }}
+      >
+        Web Crawler
+      </h1>
 
-      <form onSubmit={handleCrawl} style={{ marginBottom: '20px' }}>
+      <form
+        onSubmit={handleCrawl}
+        style={{
+          marginBottom: '30px',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '10px',
+          flexWrap: 'wrap',
+        }}
+      >
         <input
           type="url"
           value={url}
@@ -52,23 +79,33 @@ function App() {
           placeholder="Enter URL to crawl"
           disabled={isLoading}
           style={{
-            padding: '10px',
-            marginRight: '10px',
-            width: '300px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
+            padding: '12px 16px',
+            width: '400px',
+            maxWidth: '100%',
+            border: '2px solid #e1e5e9',
+            borderRadius: '8px',
+            fontSize: '16px',
+            outline: 'none',
+            transition: 'border-color 0.2s ease',
+            boxSizing: 'border-box',
           }}
+          onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+          onBlur={(e) => (e.target.style.borderColor = '#e1e5e9')}
         />
         <button
           type="submit"
           disabled={isLoading || !url.trim()}
           style={{
-            padding: '10px 20px',
-            backgroundColor: isLoading ? '#ccc' : '#007bff',
+            padding: '12px 24px',
+            backgroundColor: isLoading ? '#6c757d' : '#007bff',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '8px',
             cursor: isLoading ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            fontWeight: '500',
+            transition: 'background-color 0.2s ease',
+            minWidth: '140px',
           }}
         >
           {isLoading ? 'Crawling...' : 'Start Crawling'}
@@ -78,11 +115,13 @@ function App() {
       {error && (
         <div
           style={{
-            color: 'red',
-            backgroundColor: '#ffe6e6',
-            padding: '10px',
-            borderRadius: '4px',
+            color: '#dc3545',
+            backgroundColor: '#f8d7da',
+            border: '1px solid #f5c6cb',
+            padding: '16px',
+            borderRadius: '8px',
             marginBottom: '20px',
+            textAlign: 'center',
           }}
         >
           {error}
@@ -91,35 +130,67 @@ function App() {
 
       {results.length > 0 && (
         <div>
-          <h2>Results ({results.length} pages)</h2>
+          <h2
+            style={{
+              textAlign: 'center',
+              color: '#333',
+              marginBottom: '20px',
+              fontSize: '1.5rem',
+              fontWeight: '400',
+            }}
+          >
+            Results ({results.length} pages)
+          </h2>
           {results.map((page, index) => (
             <div
               key={index}
               style={{
-                border: '1px solid #ddd',
-                padding: '15px',
-                marginBottom: '10px',
-                borderRadius: '4px',
+                border: '1px solid #e1e5e9',
+                padding: '20px',
+                marginBottom: '16px',
+                borderRadius: '8px',
+                backgroundColor: '#f8f9fa',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               }}
             >
-              <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
+              <div
+                style={{
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  color: '#007bff',
+                  fontSize: '16px',
+                  wordBreak: 'break-all',
+                }}
+              >
                 {page.url}
               </div>
-              <div>
-                {page.links.length} links found:
-                {page.links.length > 0 && (
-                  <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                    {page.links.map((link, linkIndex) => (
-                      <li
-                        key={linkIndex}
-                        style={{ fontSize: '14px', color: '#666' }}
-                      >
-                        {link}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <div style={{ color: '#6c757d', marginBottom: '8px' }}>
+                {page.links.length} links found
               </div>
+              {page.links.length > 0 && (
+                <ul
+                  style={{
+                    marginTop: '12px',
+                    paddingLeft: '20px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {page.links.map((link, linkIndex) => (
+                    <li
+                      key={linkIndex}
+                      style={{
+                        fontSize: '14px',
+                        color: '#495057',
+                        marginBottom: '4px',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {link}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </div>
