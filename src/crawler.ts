@@ -1,33 +1,79 @@
 import { JSDOM } from 'jsdom';
 
-export async function crawlPage(currentURL: string) {
-  console.log(`Actively crawling: ${currentURL}`);
+export type PageMap = Record<string, number>;
 
+/**
+ * Crawl a web page and collect links to other pages on the same website.
+ *
+ * - Only visits pages on the same domain.
+ * - Keeps track of how many times each page is visited.
+ * - Recursively follows internal links.
+ */
+export async function crawlPage(
+  baseURL: string,
+  currentURL: string,
+  pages: PageMap
+): Promise<PageMap> {
   try {
-    const resp = await fetch(currentURL);
+    // Create URL objects for comparison and parsing
+    const base = new URL(baseURL);
+    const current = new URL(currentURL);
 
-    if (resp.status > 399) {
+    // 1️⃣ Skip if the current page is from a different domain
+    if (base.hostname !== current.hostname) {
+      console.log(`Skipping ${currentURL} (different domain)`);
+      return pages;
+    }
+
+    // 2️⃣ Normalize the URL (remove trailing slash, etc.)
+    const normalizedURL = normalizeURL(currentURL);
+
+    // 3️⃣ If we've already seen this page before, increase its count
+    if (pages[normalizedURL]) {
+      pages[normalizedURL] += 1;
       console.log(
-        `Error on fetch woith status code ${resp.status} on page: ${currentURL}`
+        `Already visited ${currentURL} (${pages[normalizedURL]} times)`
       );
-
-      return;
+      return pages;
     }
 
-    const contentType = resp.headers.get('content-type');
+    // 4️⃣ Otherwise, mark this page as visited for the first time
+    pages[normalizedURL] = 1;
+    console.log(`🕷️ Crawling: ${currentURL}`);
 
-    if (!contentType?.includes('text/html')) {
-      console.log(`Content type: ${contentType}, Non html response: ${resp.status} on page: ${currentURL}`);
+    // 5️⃣ Try to fetch the page contents
+    const response = await fetch(currentURL);
 
-      return
+    // 6️⃣ If the request failed (e.g., 404 or 500), skip this page
+    if (!response.ok) {
+      console.warn(`❌ Failed (${response.status}) to fetch: ${currentURL}`);
+      return pages;
     }
 
-    console.log(await resp.text());
+    // 7️⃣ Check if the page is actually HTML (ignore images, PDFs, etc.)
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('text/html')) {
+      console.log(`Skipping ${currentURL} (not HTML)`);
+      return pages;
+    }
 
-    return await resp.text();
+    // 8️⃣ Read the HTML content
+    const htmlBody = await response.text();
+
+    // 9️⃣ Extract all internal links from the page
+    const nextURLs = getURLsFromHTML(htmlBody, baseURL);
+
+    // 🔁 10️⃣ Recursively crawl each of those links
+    for (const nextURL of nextURLs) {
+      pages = await crawlPage(baseURL, nextURL, pages);
+    }
   } catch (error) {
-    console.log(`Error in fetch: ${currentURL} `);
+    // Catch any network or parsing errors
+    console.error(`⚠️ Error while crawling ${currentURL}:`, error);
   }
+
+  // Return the final map of visited pages
+  return pages;
 }
 
 export function normalizeURL(urlstring: string) {
