@@ -4,16 +4,6 @@ A production-ready web crawler with concurrent processing, built as a monorepo.
 
 ## Quick Start
 
-### CLI Usage
-
-```bash
-# Install dependencies
-npm install
-
-# Run crawler from command line
-npm run start:cli https://example.com
-```
-
 ### Web Interface
 
 ```bash
@@ -41,10 +31,9 @@ npm run test:web    # Web package
 
 ## Monorepo Structure
 
-```
+```text
 packages/
 ├── core/           # Core crawler logic with concurrency
-├── cli/            # Command-line interface
 ├── api/            # Express API server
 └── web/            # React web interface
 ```

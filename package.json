@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "start:cli": "tsx packages/cli/src/index.ts",
     "start:api": "tsx packages/api/src/index.ts",
     "start:web": "cd packages/web && npm run dev",
     "start:all": "concurrently \"npm run start:api\" \"npm run start:web\"",
@@ -13,7 +15,7 @@
     "test:api": "cd packages/api && npm test",
     "test:web": "cd packages/web && npm test",
     "test:all": "npm run test && npm run test:api && npm run test:web",
-    "build": "cd packages/core && npm run build && cd ../cli && npm run build && cd ../api && npm run build && cd ../web && npm run build",
+    "build": "cd packages/core && npm run build && cd ../api && npm run build && cd ../web && npm run build",
     "dev": "npm run start:all"
   },
   "keywords": [],
