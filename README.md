@@ -24,7 +24,7 @@ npm run start:all
 npm run test:all
 
 # Run specific package tests
-npm run test        # Core package
+npm run test        # All packages
 npm run test:api    # API package
 npm run test:web    # Web package
 ```
@@ -33,7 +33,6 @@ npm run test:web    # Web package
 
 ```text
 packages/
-├── core/           # Core crawler logic with concurrency
 ├── api/            # Express API server
 └── web/            # React web interface
 ```
