@@ -43,6 +43,37 @@ packages/
 
 ## 🚨 **CRITICAL ASSUMPTIONS & LIMITATIONS**
 
+### 🔍 **FUNDAMENTAL ASSUMPTIONS**
+
+#### **HTML Structure Assumptions**
+
+- **All links are in anchor tags** (`<a href>`) - assumes standard HTML structure
+- **No JavaScript-generated links** - assumes static HTML only
+- **No dynamic content loading** - assumes all content is in initial HTML
+- **Standard HTML parsing** - assumes well-formed HTML documents
+
+#### **Deployment Assumptions**
+
+- **Single Node.js instance** - designed for local/single-server deployment
+- **No horizontal scaling** - assumes one process handles all crawling
+- **In-memory state management** - assumes no external state storage
+- **No distributed coordination** - assumes single-instance operation
+
+#### **Network & Security Assumptions**
+
+- **Websites don't block crawlers** - assumes no anti-bot protection
+- **No evasive action needed** - assumes standard HTTP requests work
+- **No rate limiting by target sites** - assumes servers accept all requests
+- **No authentication required** - assumes all pages are publicly accessible
+- **No CAPTCHA or bot detection** - assumes no human verification needed
+
+#### **Performance Assumptions**
+
+- **Reasonable page sizes** - assumes < 1MB per page
+- **Stable network connections** - assumes no frequent timeouts
+- **Sufficient memory available** - assumes no memory constraints
+- **No concurrent crawls** - assumes one crawl at a time per instance
+
 ### ✅ **What This Crawler Handles**
 
 - **Static HTML pages only** - no JavaScript execution
