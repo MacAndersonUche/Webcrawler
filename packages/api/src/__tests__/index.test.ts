@@ -1,5 +1,4 @@
-import { test, expect, describe, vi, beforeEach } from 'vitest';
-import request from 'supertest';
+import { test, expect, describe, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 
 // Mock the core crawler
 vi.mock('../crawler', () => ({
@@ -12,6 +11,25 @@ import app from '../index';
 const mockCrawl = vi.mocked(crawl);
 
 describe('API Server', () => {
+  let server: any;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    // Start the server
+    server = app.listen(0);
+    const address = server.address();
+    baseUrl = `http://localhost:${address.port}`;
+  });
+
+  afterAll(async () => {
+    // Close the server
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -24,12 +42,16 @@ describe('API Server', () => {
     
     mockCrawl.mockResolvedValueOnce(mockResults);
 
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({ url: 'https://example.com' })
-      .expect(200);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com' })
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(200);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       success: true,
       results: mockResults,
       message: 'Crawl complete! Found 2 pages.'
@@ -42,23 +64,31 @@ describe('API Server', () => {
   });
 
   test('POST /api/crawl - missing URL', async () => {
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({})
-      .expect(400);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(400);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       error: 'URL is required'
     });
   });
 
   test('POST /api/crawl - invalid URL format', async () => {
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({ url: 'not-a-valid-url' })
-      .expect(400);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'not-a-valid-url' })
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(400);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       error: 'Invalid URL format'
     });
   });
@@ -66,12 +96,16 @@ describe('API Server', () => {
   test('POST /api/crawl - crawl error', async () => {
     mockCrawl.mockRejectedValueOnce(new Error('Network error'));
 
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({ url: 'https://example.com' })
-      .expect(500);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com' })
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(500);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       error: 'Network error'
     });
   });
@@ -79,12 +113,16 @@ describe('API Server', () => {
   test('POST /api/crawl - unknown error', async () => {
     mockCrawl.mockRejectedValueOnce('String error');
 
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({ url: 'https://example.com' })
-      .expect(500);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com' })
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(500);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       error: 'Unknown error occurred'
     });
   });
@@ -92,12 +130,16 @@ describe('API Server', () => {
   test('POST /api/crawl - empty results', async () => {
     mockCrawl.mockResolvedValueOnce([]);
 
-    const response = await request(app)
-      .post('/api/crawl')
-      .send({ url: 'https://example.com' })
-      .expect(200);
+    const response = await fetch(`${baseUrl}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com' })
+    });
 
-    expect(response.body).toEqual({
+    expect(response.status).toBe(200);
+    
+    const data = await response.json();
+    expect(data).toEqual({
       success: true,
       results: [],
       message: 'Crawl complete! Found 0 pages.'
@@ -109,8 +151,16 @@ describe('API Server', () => {
     mockCrawl.mockResolvedValue(mockResults);
 
     const promises = [
-      request(app).post('/api/crawl').send({ url: 'https://example.com' }),
-      request(app).post('/api/crawl').send({ url: 'https://test.com' })
+      fetch(`${baseUrl}/api/crawl`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com' })
+      }),
+      fetch(`${baseUrl}/api/crawl`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://test.com' })
+      })
     ];
 
     const responses = await Promise.all(promises);
