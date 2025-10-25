@@ -41,36 +41,14 @@ function App() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '20px',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        lineHeight: '1.6',
-      }}
-    >
-      <h1
-        style={{
-          textAlign: 'center',
-          color: '#333',
-          marginBottom: '30px',
-          fontSize: '2.5rem',
-          fontWeight: '300',
-        }}
-      >
+    <div className="max-w-4xl mx-auto p-5 font-sans leading-relaxed">
+      <h1 className="text-center text-gray-800 mb-8 text-4xl font-light">
         Web Crawler
       </h1>
 
       <form
         onSubmit={handleCrawl}
-        style={{
-          marginBottom: '30px',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '10px',
-          flexWrap: 'wrap',
-        }}
+        className="mb-8 flex justify-center gap-2.5 flex-wrap"
       >
         <input
           type="url"
@@ -78,113 +56,49 @@ function App() {
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Enter URL to crawl"
           disabled={isLoading}
-          style={{
-            padding: '12px 16px',
-            width: '400px',
-            maxWidth: '100%',
-            border: '2px solid #e1e5e9',
-            borderRadius: '8px',
-            fontSize: '16px',
-            outline: 'none',
-            transition: 'border-color 0.2s ease',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = '#007bff')}
-          onBlur={(e) => (e.target.style.borderColor = '#e1e5e9')}
+          className="px-4 py-3 w-96 max-w-full border-2 border-gray-200 rounded-lg text-base outline-none transition-colors duration-200 focus:border-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
         <button
           type="submit"
           disabled={isLoading || !url.trim()}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: isLoading ? '#6c757d' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            fontSize: '16px',
-            fontWeight: '500',
-            transition: 'background-color 0.2s ease',
-            minWidth: '140px',
-          }}
+          className={`px-6 py-3 text-white border-none rounded-lg cursor-pointer text-base font-medium transition-colors duration-200 min-w-[140px] ${
+            isLoading
+              ? 'bg-gray-500 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600'
+          }`}
         >
           {isLoading ? 'Crawling...' : 'Start Crawling'}
         </button>
       </form>
 
       {error && (
-        <div
-          style={{
-            color: '#dc3545',
-            backgroundColor: '#f8d7da',
-            border: '1px solid #f5c6cb',
-            padding: '16px',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            textAlign: 'center',
-          }}
-        >
+        <div className="text-red-600 bg-red-50 border border-red-200 p-4 rounded-lg mb-5 text-center">
           {error}
         </div>
       )}
 
       {results.length > 0 && (
         <div>
-          <h2
-            style={{
-              textAlign: 'center',
-              color: '#333',
-              marginBottom: '20px',
-              fontSize: '1.5rem',
-              fontWeight: '400',
-            }}
-          >
+          <h2 className="text-center text-gray-800 mb-5 text-2xl font-normal">
             Results ({results.length} pages)
           </h2>
           {results.map((page, index) => (
             <div
               key={index}
-              style={{
-                border: '1px solid #e1e5e9',
-                padding: '20px',
-                marginBottom: '16px',
-                borderRadius: '8px',
-                backgroundColor: '#f8f9fa',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              }}
+              className="border border-gray-200 p-5 mb-4 rounded-lg bg-gray-50 shadow-sm"
             >
-              <div
-                style={{
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  color: '#007bff',
-                  fontSize: '16px',
-                  wordBreak: 'break-all',
-                }}
-              >
+              <div className="font-semibold mb-3 text-blue-500 text-base break-all">
                 {page.url}
               </div>
-              <div style={{ color: '#6c757d', marginBottom: '8px' }}>
+              <div className="text-gray-500 mb-2">
                 {page.links.length} links found
               </div>
               {page.links.length > 0 && (
-                <ul
-                  style={{
-                    marginTop: '12px',
-                    paddingLeft: '20px',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                  }}
-                >
+                <ul className="mt-3 pl-5 max-h-48 overflow-y-auto">
                   {page.links.map((link, linkIndex) => (
                     <li
                       key={linkIndex}
-                      style={{
-                        fontSize: '14px',
-                        color: '#495057',
-                        marginBottom: '4px',
-                        wordBreak: 'break-all',
-                      }}
+                      className="text-sm text-gray-600 mb-1 break-all"
                     >
                       {link}
                     </li>
