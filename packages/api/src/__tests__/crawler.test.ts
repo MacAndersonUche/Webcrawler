@@ -242,4 +242,242 @@ describe('crawl function', () => {
     expect(results).toHaveLength(1);
     expect(results[0].links).toHaveLength(0);
   });
+
+  test('processQueue handles high concurrency correctly', async () => {
+    const mockFetch = vi.mocked(fetch);
+    let callCount = 0;
+    
+    mockFetch.mockImplementation((url) => {
+      callCount++;
+      const html = url === 'https://example.com' 
+        ? `<html><body>
+            <a href="https://example.com/page1">Page 1</a>
+            <a href="https://example.com/page2">Page 2</a>
+            <a href="https://example.com/page3">Page 3</a>
+            <a href="https://example.com/page4">Page 4</a>
+            <a href="https://example.com/page5">Page 5</a>
+          </body></html>`
+        : '<html><body><p>No more links</p></body></html>';
+      
+      return Promise.resolve({
+        ok: true,
+        headers: new Map([['content-type', 'text/html']]),
+        text: () => Promise.resolve(html)
+      } as any);
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 3, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(6); // Home + 5 pages
+    expect(callCount).toBe(6);
+  });
+
+  test('processQueue respects rate limiting', async () => {
+    const mockFetch = vi.mocked(fetch);
+    const startTime = Date.now();
+    
+    mockFetch.mockImplementation((url) => {
+      const html = url === 'https://example.com' 
+        ? '<html><body><a href="https://example.com/page1">Page 1</a></body></html>'
+        : '<html><body><p>No more links</p></body></html>';
+      
+      return Promise.resolve({
+        ok: true,
+        headers: new Map([['content-type', 'text/html']]),
+        text: () => Promise.resolve(html)
+      } as any);
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 1, rateLimitMs: 100 });
+    const endTime = Date.now();
+    
+    expect(results).toHaveLength(2);
+    expect(endTime - startTime).toBeGreaterThanOrEqual(100); // Should respect rate limit
+  });
+
+  test('processQueue handles concurrent failures gracefully', async () => {
+    const mockFetch = vi.mocked(fetch);
+    let callCount = 0;
+    
+    mockFetch.mockImplementation((url) => {
+      callCount++;
+      if (url === 'https://example.com') {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve(`
+            <html><body>
+              <a href="https://example.com/page1">Page 1</a>
+              <a href="https://example.com/page2">Page 2</a>
+              <a href="https://example.com/page3">Page 3</a>
+            </body></html>
+          `)
+        } as any);
+      } else if (url === 'https://example.com/page2') {
+        // Simulate network error for page2
+        return Promise.reject(new Error('Network timeout'));
+      } else {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve('<html><body><p>No more links</p></body></html>')
+        } as any);
+      }
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 3, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(4); // Home + 3 pages (page2 fails but still recorded)
+    expect(results.find(r => r.url === 'https://example.com/page2')?.links).toHaveLength(0);
+  });
+
+  test('processQueue handles empty queue correctly', async () => {
+    const mockFetch = vi.mocked(fetch);
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: new Map([['content-type', 'text/html']]),
+      text: () => Promise.resolve('<html><body><p>No links</p></body></html>')
+    } as any);
+
+    const results = await crawl('https://example.com', { maxConcurrency: 5, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(1);
+    expect(results[0].links).toHaveLength(0);
+  });
+
+  test('processQueue handles large queue efficiently', async () => {
+    const mockFetch = vi.mocked(fetch);
+    let callCount = 0;
+    
+    mockFetch.mockImplementation((url) => {
+      callCount++;
+      if (url === 'https://example.com') {
+        // Create a page with many links
+        const links = Array.from({ length: 20 }, (_, i) => 
+          `<a href="https://example.com/page${i + 1}">Page ${i + 1}</a>`
+        ).join('');
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve(`<html><body>${links}</body></html>`)
+        } as any);
+      } else {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve('<html><body><p>No more links</p></body></html>')
+        } as any);
+      }
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 5, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(21); // Home + 20 pages
+    expect(callCount).toBe(21);
+  });
+
+  test('processQueue handles mixed success and failure scenarios', async () => {
+    const mockFetch = vi.mocked(fetch);
+    let callCount = 0;
+    
+    mockFetch.mockImplementation((url) => {
+      callCount++;
+      if (url === 'https://example.com') {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve(`
+            <html><body>
+              <a href="https://example.com/success">Success</a>
+              <a href="https://example.com/error">Error</a>
+              <a href="https://example.com/timeout">Timeout</a>
+            </body></html>
+          `)
+        } as any);
+      } else if (url === 'https://example.com/error') {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          headers: new Map(),
+          text: () => Promise.resolve('Server Error')
+        } as any);
+      } else if (url === 'https://example.com/timeout') {
+        return Promise.reject(new Error('Request timeout'));
+      } else {
+        return Promise.resolve({
+          ok: true,
+          headers: new Map([['content-type', 'text/html']]),
+          text: () => Promise.resolve('<html><body><p>Success page</p></body></html>')
+        } as any);
+      }
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 2, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(4); // All pages should be recorded
+    expect(results.find(r => r.url === 'https://example.com/success')).toBeDefined();
+    expect(results.find(r => r.url === 'https://example.com/error')?.links).toHaveLength(0);
+    expect(results.find(r => r.url === 'https://example.com/timeout')?.links).toHaveLength(0);
+  });
+
+  test('processQueue handles concurrency limits correctly', async () => {
+    const mockFetch = vi.mocked(fetch);
+    const concurrentCalls: number[] = [];
+    let activeCalls = 0;
+    
+    mockFetch.mockImplementation(async (url) => {
+      activeCalls++;
+      concurrentCalls.push(activeCalls);
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      const html = url === 'https://example.com' 
+        ? '<html><body><a href="https://example.com/page1">Page 1</a><a href="https://example.com/page2">Page 2</a></body></html>'
+        : '<html><body><p>No more links</p></body></html>';
+      
+      activeCalls--;
+      
+      return Promise.resolve({
+        ok: true,
+        headers: new Map([['content-type', 'text/html']]),
+        text: () => Promise.resolve(html)
+      } as any);
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 2, rateLimitMs: 0 });
+    
+    expect(results).toHaveLength(3);
+    // Verify we never exceeded concurrency limit
+    expect(Math.max(...concurrentCalls)).toBeLessThanOrEqual(2);
+  });
+
+  test('processQueue handles rate limiting with high concurrency', async () => {
+    const mockFetch = vi.mocked(fetch);
+    const callTimes: number[] = [];
+    
+    mockFetch.mockImplementation((url) => {
+      callTimes.push(Date.now());
+      
+      const html = url === 'https://example.com' 
+        ? '<html><body><a href="https://example.com/page1">Page 1</a></body></html>'
+        : '<html><body><p>No more links</p></body></html>';
+      
+      return Promise.resolve({
+        ok: true,
+        headers: new Map([['content-type', 'text/html']]),
+        text: () => Promise.resolve(html)
+      } as any);
+    });
+
+    const results = await crawl('https://example.com', { maxConcurrency: 5, rateLimitMs: 50 });
+    
+    expect(results).toHaveLength(2);
+    // Verify rate limiting was applied
+    if (callTimes.length > 1) {
+      const timeDiff = callTimes[1] - callTimes[0];
+      expect(timeDiff).toBeGreaterThanOrEqual(50);
+    }
+  });
 });
