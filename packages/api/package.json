@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "tsx src/index.ts",
     "dev": "tsc --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "vitest run src/__tests__/e2e.test.ts"
   },
   "dependencies": {
     "@webcrawler/core": "file:../core",

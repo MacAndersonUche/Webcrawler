@@ -39,7 +39,9 @@ packages/
 
 ## Key Features
 
+- ✅ **Concurrent crawling** (5x faster than sequential)
 - ✅ **Rate limiting** (server-friendly)
+- ✅ **Subdomain restriction** 
 - ✅ **Comprehensive tests** (unit tests with mocks)
 - ✅ **Production-ready** (error handling, configurable)
 
@@ -67,6 +69,31 @@ await crawl(url, {
 - **Concurrency tests**: Verify parallel processing works correctly
 - **Error handling**: Network failures, HTTP errors, invalid URLs
 - **Edge cases**: URL normalization, subdomain detection
+
+## Crawler Assumptions & Limitations
+
+### ✅ **What This Crawler Handles**
+
+- Static HTML pages with standard `<a href>` links
+- **Only anchor tags** (`<a>`) - no other link types (forms, buttons, etc.)
+- Same-domain crawling only (e.g., monzo.com, not community.monzo.com)
+- HTTP/HTTPS protocols
+- Concurrent processing with rate limiting
+- Error handling and URL normalization
+
+### ❌ **What This Crawler Does NOT Handle**
+
+- **HTTP Redirects** - follows automatically but doesn't track chains
+- **JavaScript redirects** - no JS execution
+- **Meta refresh redirects** - doesn't parse meta tags
+- **JavaScript-generated content** - no SPA support
+- **Authentication** - no login/session handling
+- **External domains** - same domain only
+- **Subdomains** - exact domain matches only
+- **File downloads** - HTML content only
+- **Form submissions** - GET requests only
+- **Bot protection** - may be blocked
+- **Robots.txt** - doesn't respect restrictions
 
 ## Production Considerations
 

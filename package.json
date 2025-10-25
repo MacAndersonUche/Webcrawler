@@ -12,6 +12,7 @@
     "start:web": "cd packages/web && npm run dev",
     "start:all": "concurrently \"npm run start:api\" \"npm run start:web\"",
     "test": "cd packages/api && npm test && cd ../web && npm test",
+    "test:e2e": "cd packages/api && npm run test:e2e",
     "build": "cd packages/api && npm run build && cd ../web && npm run build",
     "dev": "npm run start:all"
   },
