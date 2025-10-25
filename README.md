@@ -39,8 +39,8 @@ packages/
 
 ## Key Features
 
-- ✅ **Concurrent crawling** (5x faster than sequential)
-- ✅ **Rate limiting** (server-friendly)
+- ✅ **Concurrent crawling** 
+- ✅ **Rate limiting** 
 - ✅ **Subdomain restriction** 
 - ✅ **Comprehensive tests** (unit tests with mocks)
 - ✅ **Production-ready** (error handling, configurable)
@@ -97,7 +97,6 @@ await crawl(url, {
 
 ## Production Considerations
 
-- **Memory efficient**: O(p) space for visited URLs
 - **Network friendly**: Rate limiting prevents overwhelming servers
 - **Error resilient**: Graceful degradation on failures
 - **Configurable**: Environment-specific settings
