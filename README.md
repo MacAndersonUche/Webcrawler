@@ -39,9 +39,7 @@ packages/
 
 ## Key Features
 
-- ✅ **Concurrent crawling** (5x faster than sequential)
 - ✅ **Rate limiting** (server-friendly)
-- ✅ **Subdomain restriction** (monzo.com only, not community.monzo.com)
 - ✅ **Comprehensive tests** (unit tests with mocks)
 - ✅ **Production-ready** (error handling, configurable)
 
@@ -54,13 +52,6 @@ await crawl(url, {
   rateLimitMs: 100, // 100ms delay between batches
 });
 ```
-
-**Benefits:**
-
-- 5x faster than sequential crawling
-- Server-friendly with rate limiting
-- Error isolation (failed requests don't stop others)
-- Configurable for different environments
 
 ## Design Decisions
 
