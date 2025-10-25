@@ -12,7 +12,6 @@
     "test:e2e": "vitest run src/__tests__/e2e.test.ts"
   },
   "dependencies": {
-    "@webcrawler/core": "file:../core",
     "express": "^4.18.2",
     "cors": "^2.8.5"
   },
