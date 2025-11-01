@@ -14,7 +14,6 @@ app.post('/api/crawl', async (req: express.Request, res: express.Response) => {
   }
 
   try {
-    // Validate URL
     new URL(url);
   } catch (error) {
     return res.status(400).json({ error: 'Invalid URL format' });
@@ -47,7 +46,6 @@ export default app;
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`🚀 Web Crawler Server running on http://localhost:${PORT}`);
-    console.log(`📱 Open your browser and navigate to the URL above`);
+    console.log(` Web Crawler Server running on http://localhost:${PORT}`);
   });
 }

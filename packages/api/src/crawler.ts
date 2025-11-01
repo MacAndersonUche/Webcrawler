@@ -8,12 +8,10 @@ export interface CrawlResult {
 export function normalizeURL(urlString: string): string {
   try {
     const url = new URL(urlString);
-    // Remove trailing slash and fragment
     let path = url.pathname;
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
     }
-    // Ensure at least empty string if path becomes empty
     if (path === '') {
       path = '';
     }
@@ -46,14 +44,12 @@ export function getLinksFromHTML(html: string, baseURL: string): string[] {
       // Handle relative and absolute URLs
       const absoluteURL = new URL(href, baseURL);
       
-      // Only include http and https protocols
       if (absoluteURL.protocol !== 'http:' && absoluteURL.protocol !== 'https:') {
         continue;
       }
       
       links.push(absoluteURL.href);
     } catch (error) {
-      // Skip invalid URLs
       continue;
     }
   }
@@ -61,9 +57,6 @@ export function getLinksFromHTML(html: string, baseURL: string): string[] {
   return links;
 }
 
-/**
- * Fetch and parse a single page
- */
 async function fetchPage(url: string): Promise<string | null> {
   try {
     const response = await fetch(url);
@@ -98,7 +91,6 @@ async function processURL(
 ): Promise<void> {
   const normalizedURL = normalizeURL(url);
   
-  // Skip if already visited or in progress
   if (visited.has(normalizedURL) || inProgress.has(normalizedURL)) {
     return;
   }
@@ -119,18 +111,16 @@ async function processURL(
       return;
     }
 
-    // Extract links
     const links = getLinksFromHTML(html, url);
     const normalizedLinks = [...new Set(links.map(link => normalizeURL(link)))];
     
-    console.log(`  Found ${normalizedLinks.length} links`);
+    console.log(`Found ${normalizedLinks.length} links`);
     
     results.push({
       url: normalizedURL,
       links: normalizedLinks
     });
 
-    // Add internal links to queue
     for (const link of links) {
       const normalizedLink = normalizeURL(link);
       if (isSameSubdomain(startURL, link) && 
@@ -161,12 +151,10 @@ async function processQueue(
   queue: string[]
 ): Promise<void> {
   while (queue.length > 0 || inProgress.size > 0) {
-    // Start new requests up to concurrency limit
     const availableSlots = maxConcurrency - inProgress.size;
     const urlsToProcess = queue.splice(0, availableSlots);
 
     if (urlsToProcess.length > 0) {
-      // Process URLs concurrently
       const promises = urlsToProcess.map(url => 
         processURL(url, startURL, results, visited, inProgress, queue)
       );
