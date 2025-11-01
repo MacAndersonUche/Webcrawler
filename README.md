@@ -105,7 +105,6 @@ npm run test:e2e
 - JavaScript-generated content or redirects
 - External domains or subdomains
 - Authentication or protected pages
-- Form submissions or POST requests
 - robots.txt compliance
 - Request timeouts or retries
 
@@ -113,6 +112,5 @@ npm run test:e2e
 
 - No resumption of interrupted crawls (must restart from beginning if interrupted)
 - No retry logic (failed requests are not retried)
-- Assumes reasonable page sizes (< 1MB) and stable network connections
-- Assumes target servers can handle concurrent requests
+- Assumes smaller page sizes
 - No distributed state coordination
