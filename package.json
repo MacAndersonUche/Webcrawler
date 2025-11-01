@@ -1,0 +1,30 @@
+{
+  "name": "webcrawler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start:api": "tsx packages/api/src/index.ts",
+    "start:web": "cd packages/web && npm run dev",
+    "start:all": "concurrently \"npm run start:api\" \"npm run start:web\"",
+    "test": "cd packages/api && npm test && cd ../web && npm test",
+    "test:e2e": "cd packages/api && npm run test:e2e",
+    "build": "cd packages/api && npm run build && cd ../web && npm run build",
+    "dev": "npm run start:all"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^24.9.1",
+    "concurrently": "^9.1.0",
+    "jsdom": "^27.0.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

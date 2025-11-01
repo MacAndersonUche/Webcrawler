@@ -1,0 +1,185 @@
+import { JSDOM } from 'jsdom';
+
+export interface CrawlResult {
+  url: string;
+  links: string[];
+}
+
+export function normalizeURL(urlString: string): string {
+  try {
+    const url = new URL(urlString);
+    let path = url.pathname;
+    if (path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+    if (path === '') {
+      path = '';
+    }
+    return `${url.protocol}//${url.hostname}${path}${url.search}`;
+  } catch (error) {
+    throw new Error(`Invalid URL: ${urlString}`);
+  }
+}
+
+export function isSameSubdomain(baseURL: string, targetURL: string): boolean {
+  try {
+    const base = new URL(baseURL);
+    const target = new URL(targetURL);
+    return base.hostname === target.hostname;
+  } catch (error) {
+    return false;
+  }
+}
+
+export function getLinksFromHTML(html: string, baseURL: string): string[] {
+  const links: string[] = [];
+  const dom = new JSDOM(html);
+  const anchorElements = dom.window.document.querySelectorAll('a');
+
+  for (const anchor of anchorElements) {
+    const href = anchor.getAttribute('href');
+    if (!href) continue;
+
+    try {
+      // Handle relative and absolute URLs
+      const absoluteURL = new URL(href, baseURL);
+      
+      if (absoluteURL.protocol !== 'http:' && absoluteURL.protocol !== 'https:') {
+        continue;
+      }
+      
+      links.push(absoluteURL.href);
+    } catch (error) {
+      continue;
+    }
+  }
+
+  return links;
+}
+
+async function fetchPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`  ✗ HTTP ${response.status}: ${url}`);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      return null;
+    }
+
+    return await response.text();
+  } catch (error) {
+    console.error(`  ✗ Error fetching ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
+  }
+}
+
+/**
+ * Process a single URL and extract its links
+ */
+async function processURL(
+  url: string, 
+  startURL: string,
+  results: CrawlResult[],
+  visited: Set<string>,
+  inProgress: Set<string>,
+  queue: string[]
+): Promise<void> {
+  const normalizedURL = normalizeURL(url);
+  
+  if (visited.has(normalizedURL) || inProgress.has(normalizedURL)) {
+    return;
+  }
+
+  // Skip if not same subdomain
+  if (!isSameSubdomain(startURL, url)) {
+    return;
+  }
+
+  inProgress.add(normalizedURL);
+  console.log(`\n✓ Visiting: ${normalizedURL}`);
+
+  try {
+    // Fetch the page
+    const html = await fetchPage(url);
+    if (!html) {
+      results.push({ url: normalizedURL, links: [] });
+      return;
+    }
+
+    const links = getLinksFromHTML(html, url);
+    const normalizedLinks = [...new Set(links.map(link => normalizeURL(link)))];
+    
+    console.log(`Found ${normalizedLinks.length} links`);
+    
+    results.push({
+      url: normalizedURL,
+      links: normalizedLinks
+    });
+
+    for (const link of links) {
+      const normalizedLink = normalizeURL(link);
+      if (isSameSubdomain(startURL, link) && 
+          !visited.has(normalizedLink) && 
+          !inProgress.has(normalizedLink)) {
+        queue.push(link);
+      }
+    }
+  } catch (error) {
+    console.error(`Error processing ${url}:`, error);
+    results.push({ url: normalizedURL, links: [] });
+  } finally {
+    visited.add(normalizedURL);
+    inProgress.delete(normalizedURL);
+  }
+}
+
+/**
+ * Process the queue of URLs with concurrency control
+ */
+async function processQueue(
+  startURL: string,
+  maxConcurrency: number,
+  rateLimitMs: number,
+  results: CrawlResult[],
+  visited: Set<string>,
+  inProgress: Set<string>,
+  queue: string[]
+): Promise<void> {
+  while (queue.length > 0 || inProgress.size > 0) {
+    const availableSlots = maxConcurrency - inProgress.size;
+    const urlsToProcess = queue.splice(0, availableSlots);
+
+    if (urlsToProcess.length > 0) {
+      const promises = urlsToProcess.map(url => 
+        processURL(url, startURL, results, visited, inProgress, queue)
+      );
+      await Promise.allSettled(promises);
+    }
+
+    // Rate limiting
+    if (queue.length > 0 || inProgress.size > 0) {
+      await new Promise(resolve => setTimeout(resolve, rateLimitMs));
+    }
+  }
+}
+
+export async function crawl(
+  startURL: string, 
+  options: { maxConcurrency?: number; rateLimitMs?: number } = {}
+): Promise<CrawlResult[]> {
+  const { maxConcurrency = 5, rateLimitMs = 100 } = options;
+  
+  const results: CrawlResult[] = [];
+  const visited = new Set<string>();
+  const queue: string[] = [startURL];
+  const inProgress = new Set<string>();
+
+  await processQueue(startURL, maxConcurrency, rateLimitMs, results, visited, inProgress, queue);
+  
+  return results;
+}
