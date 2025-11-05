@@ -1168,6 +1168,344 @@ All errors are logged but don't stop the crawl.
 
 ---
 
+#### **Q: "What if a site uses HTTP redirects (301, 302)?"**
+
+**Answer:**
+
+- Current: `fetch()` follows redirects automatically (up to limit)
+- Problem: Redirect chains might go to external domains
+- Need to:
+  - Track redirect chain to detect domain changes
+  - Stop following if redirects outside original domain
+  - Use `fetch()` with `redirect: 'manual'` option
+  - Check `Location` header manually
+  - Only follow if staying within same domain
+
+**Implementation:**
+```typescript
+const response = await fetch(url, { redirect: 'manual' });
+if (response.status === 301 || response.status === 302) {
+  const redirectUrl = response.headers.get('Location');
+  if (redirectUrl && isSameSubdomain(startURL, redirectUrl)) {
+    // Follow redirect
+  }
+}
+```
+
+---
+
+#### **Q: "What if URLs contain session IDs or tracking parameters?"**
+
+**Answer:**
+
+- Current: Preserves query strings, so `/page?session=abc123` and `/page?session=xyz789` are different
+- Problem: Creates infinite URLs (same page, different session IDs)
+- Solution: Normalize query strings by removing tracking parameters
+- Could accept list of params to ignore (e.g., `session`, `utm_*`, `ref`)
+- Or use URL normalization library that handles common tracking params
+- Trade-off: Might lose legitimate query string differences
+
+**Code Reference:** `packages/api/src/crawler.ts:18` - currently preserves `url.search`
+
+---
+
+#### **Q: "What if a site shows different content based on User-Agent?"**
+
+**Answer:**
+
+- Current: Uses default User-Agent (Node.js fetch)
+- Some sites serve mobile vs desktop versions
+- Some sites block bots without proper User-Agent
+- Solution: Add configurable User-Agent header
+- Could detect content type and adjust (mobile HTML vs desktop)
+- Might need to crawl twice with different User-Agents
+
+**Implementation:**
+```typescript
+const response = await fetch(url, {
+  headers: {
+    'User-Agent': 'MyCrawler/1.0 (+https://example.com/crawler)'
+  }
+});
+```
+
+---
+
+#### **Q: "What if a site uses infinite scroll or lazy-loads content?"**
+
+**Answer:**
+
+- Current: Only parses static HTML, no JavaScript execution
+- Infinite scroll: Links loaded via JavaScript after scroll
+- Lazy loading: Links in `<noscript>` or loaded dynamically
+- Solution: Use headless browser (Puppeteer/Playwright)
+- Scroll to bottom of page, wait for content to load
+- Use `waitUntil: 'networkidle0'` to wait for all requests
+- Much slower than static parsing, but necessary for SPAs
+
+**Code Reference:** Scenario 2 in iteration section (JavaScript-rendered content)
+
+---
+
+#### **Q: "What if a site blocks you after detecting bot behavior?"**
+
+**Answer:**
+
+- Current: No detection of blocking (429, 403, CAPTCHA)
+- Signs of blocking: Rate limiting, IP bans, CAPTCHA pages
+- Detection:
+  - Check for 429 (Too Many Requests) responses
+  - Detect CAPTCHA in HTML content
+  - Monitor error rate spikes
+- Mitigation:
+  - Exponential backoff if 429 detected
+  - Circuit breaker: pause domain if consistently blocked
+  - Rotate User-Agents, IPs (if distributed)
+  - Respect rate limits more aggressively
+- Could add CAPTCHA detection and alert
+
+---
+
+#### **Q: "What if the same URL returns different content each time?"**
+
+**Answer:**
+
+- Current: Treats URL as visited after first fetch
+- Problem: Dynamic content (news sites, social feeds)
+- Solutions:
+  - Add timestamp to visited key: `visited.add(`${url}:${timestamp}`)`
+  - Re-crawl URLs based on TTL (time-to-live)
+  - Use ETag/Last-Modified headers to detect changes
+  - Version URLs: `/page?v=1`, `/page?v=2` treated as different
+- Trade-off: More complex, but handles dynamic content
+
+---
+
+#### **Q: "What if URLs contain fragments that actually matter?"**
+
+**Answer:**
+
+- Current: Strips fragments (`#section`) in normalization
+- Problem: Some SPAs use hash routing (`#/about`)
+- Some sites use fragments for different content
+- Solution: Make fragment handling configurable
+- Option: `preserveFragments: true`
+- Or detect if site uses hash routing (check initial page)
+- For most sites, fragments are safe to strip (just navigation anchors)
+
+**Code Reference:** `packages/api/src/crawler.ts:18` - fragments removed
+
+---
+
+#### **Q: "What if a site is behind a CDN that aggressively caches?"**
+
+**Answer:**
+
+- Current: No cache control headers
+- Problem: CDN might serve stale content
+- Solution: Add cache-busting headers:
+  - `Cache-Control: no-cache`
+  - Or add timestamp query param: `?t=${Date.now()}`
+- But: Respects server's cache, not client's
+- Real issue: CDN caches at edge, not in crawler
+- Might need to wait for cache invalidation or use different endpoint
+
+---
+
+#### **Q: "What if you need to crawl multiple domains at once?"**
+
+**Answer:**
+
+- Current: Single domain only (strict hostname matching)
+- Enhancement: Accept array of starting URLs
+- Maintain separate visited sets per domain
+- Separate queues per domain
+- Shared concurrency pool (distribute across domains)
+- Rate limit per domain independently
+- Could use domain-specific rate limits (some domains faster than others)
+
+**Implementation:**
+```typescript
+const domainQueues = new Map<string, string[]>();
+const domainVisited = new Map<string, Set<string>>();
+// Process each domain's queue round-robin or concurrently
+```
+
+---
+
+#### **Q: "What if a site uses URL shorteners or redirects that change?"**
+
+**Answer:**
+
+- Current: Follows redirects automatically (up to limit)
+- Problem: Shorteners might change destination over time
+- Solution:
+  - Store final URL after redirect resolution
+  - Cache redirect mappings (short URL → final URL)
+  - Re-validate redirects periodically
+  - Track redirect chains to detect changes
+- Could normalize to final URL to prevent duplicates
+
+---
+
+#### **Q: "What if a site requires specific headers (Accept, Accept-Language)?"**
+
+**Answer:**
+
+- Current: No custom headers sent
+- Some sites require specific headers or return 406 (Not Acceptable)
+- Solution: Make headers configurable
+- Common headers:
+  - `Accept: text/html,application/xhtml+xml`
+  - `Accept-Language: en-US,en;q=0.9`
+  - `Accept-Encoding: gzip, deflate`
+- Could auto-detect from initial response
+- Or accept headers as crawl options
+
+**Implementation:**
+```typescript
+const response = await fetch(url, {
+  headers: {
+    'Accept': 'text/html,application/xhtml+xml',
+    'Accept-Language': 'en-US,en;q=0.9',
+    ...customHeaders
+  }
+});
+```
+
+---
+
+#### **Q: "What if a site has rate limits that vary by endpoint?"**
+
+**Answer:**
+
+- Current: Uniform rate limiting (100ms per batch)
+- Problem: Some endpoints slower, some faster
+- Solution: Adaptive rate limiting per URL pattern
+- Track response times per endpoint pattern
+- Adjust delay based on historical performance
+- Fast endpoints: shorter delay
+- Slow endpoints: longer delay
+- Could use per-URL-pattern rate limiting
+
+**Implementation:**
+```typescript
+const endpointDelays = new Map<string, number>();
+// Track response time, adjust delay
+// Use endpoint-specific delay in rate limiting
+```
+
+---
+
+#### **Q: "What if you need to respect different crawl-delays from multiple sources?"**
+
+**Answer:**
+
+- Current: Single global rate limit (100ms)
+- Sources: robots.txt, sitemap.xml, custom config
+- Solution: Respect most restrictive delay
+- Parse robots.txt for crawl-delay
+- Parse sitemap.xml if provided
+- Use maximum of all delays
+- Per-path delays: Different delays for `/admin/` vs `/public/`
+- Could implement per-path pattern matching
+
+---
+
+#### **Q: "What if a site uses non-standard link formats (not `<a href>`)?**
+
+**Answer:**
+
+- Current: Only extracts `<a href>` tags
+- Other formats:
+  - `<link rel="canonical">` (canonical URLs)
+  - JavaScript: `window.location = '/page'`
+  - Data attributes: `<div data-url="/page">`
+  - Meta refresh: `<meta http-equiv="refresh" content="0;url=/page">`
+- Solution: Extend `getLinksFromHTML()` to handle:
+  - Canonical links
+  - Data attributes
+  - Meta refresh tags
+- JavaScript links require browser execution (Puppeteer)
+
+**Code Reference:** `packages/api/src/crawler.ts:34-58` - only handles `<a href>`
+
+---
+
+#### **Q: "What if a site has sitemap.xml? Should you use it?"**
+
+**Answer:**
+
+- Current: Discovers URLs organically via links
+- Sitemap.xml: Provides list of all URLs upfront
+- Benefits:
+  - Faster discovery (no need to crawl to find URLs)
+  - More complete (might miss pages with no inbound links)
+  - Respects priorities and change frequencies
+- Implementation:
+  - Fetch sitemap.xml first
+  - Parse XML, extract URLs
+  - Add to queue
+  - Use as seed URLs instead of just starting URL
+- Could combine: Use sitemap + organic discovery
+
+---
+
+#### **Q: "What if a site changes its URL structure while you're crawling?"**
+
+**Answer:**
+
+- Current: No detection of URL structure changes
+- Problem: URLs might become invalid mid-crawl
+- Solution:
+  - Track 404 rate - spike indicates structure change
+  - Re-validate URLs that were queued earlier
+  - Use sitemap.xml as source of truth
+  - Implement retry with different patterns
+  - Could pause and re-seed from homepage
+- Or: Treat as new crawl session, start fresh
+
+---
+
+#### **Q: "What if you need to crawl only specific paths (e.g., `/blog/*` only)?"**
+
+**Answer:**
+
+- Current: Crawls all same-domain URLs
+- Solution: Add path filtering
+- Options:
+  - Include patterns: `['/blog/', '/articles/']`
+  - Exclude patterns: `['/admin/', '/private/']`
+  - Regex patterns for complex matching
+- Check against patterns before adding to queue
+- Could use glob patterns or regex
+
+**Implementation:**
+```typescript
+const includePatterns = ['/blog/', '/articles/'];
+if (includePatterns.some(pattern => url.includes(pattern))) {
+  queue.push(url);
+}
+```
+
+---
+
+#### **Q: "What if a site uses WebSockets or Server-Sent Events for links?"**
+
+**Answer:**
+
+- Current: Only parses static HTML
+- Problem: Links pushed via WebSocket/SSE won't be discovered
+- Solution: Requires browser automation
+- Puppeteer can:
+  - Listen to WebSocket messages
+  - Capture SSE events
+  - Extract links from dynamic content
+- Much more complex than static parsing
+- Would need to wait for WebSocket connections to establish
+
+---
+
 ## 📝 8. Quick Reference: Code Locations
 
 | Topic               | File                                         | Key Lines |
