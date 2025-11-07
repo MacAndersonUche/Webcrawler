@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "start:api": "tsx packages/api/src/index.ts",
+    "start:api": "tsx --watch packages/api/src/index.ts",
     "start:web": "cd packages/web && npm run dev",
     "start:all": "concurrently \"npm run start:api\" \"npm run start:web\"",
     "test": "cd packages/api && npm test && cd ../web && npm test",
