@@ -1506,22 +1506,7 @@ if (includePatterns.some(pattern => url.includes(pattern))) {
 
 ---
 
-## 📝 8. Quick Reference: Code Locations
-
-| Topic               | File                                         | Key Lines |
-| ------------------- | -------------------------------------------- | --------- |
-| Main crawl function | `packages/api/src/crawler.ts`                | 171-185   |
-| Concurrency control | `packages/api/src/crawler.ts`                | 144-169   |
-| URL normalization   | `packages/api/src/crawler.ts`                | 8-22      |
-| Domain matching     | `packages/api/src/crawler.ts`                | 24-32     |
-| Link extraction     | `packages/api/src/crawler.ts`                | 34-58     |
-| API endpoint        | `packages/api/src/index.ts`                  | 9-43      |
-| Web UI              | `packages/web/src/App.tsx`                   | 8-114     |
-| Tests               | `packages/api/src/__tests__/crawler.test.ts` | All       |
-
----
-
-## ✅ 9. Pre-Interview Checklist
+## ✅ 8. Pre-Interview Checklist
 
 - [ ] Review README.md (know your assumptions)
 - [ ] Run the code once to ensure it works
@@ -1535,13 +1520,3 @@ if (includePatterns.some(pattern => url.includes(pattern))) {
 
 ---
 
-## 🎯 10. Closing Thoughts
-
-Remember:
-
-- **They've already reviewed your code** - they're interested in your thought process
-- **Be honest about limitations** - shows self-awareness
-- **Show enthusiasm** - explain why you made certain choices
-- **Think out loud** - if asked to iterate, talk through your reasoning
-
-Good luck! 🚀
